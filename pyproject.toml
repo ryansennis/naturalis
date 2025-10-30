@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "naturalis"
+version = "0.1.0"
+description = "Naturalis is a high-performance Python framework for orbital simulation and Guidance, Navigation, and Control (GNC) algorithm development."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Ryan Ennis", email = "ryansennis@hotmail.com" }]
+
+dependencies = [
+  "numpy>=1.24",
+  "matplotlib>=3.7",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/Python"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+lint.select = ["E", "F", "I", "UP", "B"]
+lint.ignore = []
+exclude = ["venv", ".venv", "build", "dist"]
+
+[tool.black]
+line-length = 100
+target-version = ["py39"]
+
+[tool.mypy]
+python_version = "3.9"
+ignore_missing_imports = true
+strict = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+addopts = "-q"
