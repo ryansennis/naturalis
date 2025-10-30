@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling>=1.25"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=65", "wheel", "Cython>=0.29"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "naturalis"
@@ -16,8 +16,11 @@ dependencies = [
   "matplotlib>=3.7",
 ]
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/Python"]
+[tool.setuptools]
+package-dir = {"" = "src/Python"}
+
+[tool.setuptools.packages.find]
+where = ["src/Python"]
 
 [tool.ruff]
 line-length = 100
