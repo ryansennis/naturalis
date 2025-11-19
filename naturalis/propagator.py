@@ -3,7 +3,7 @@ import numpy as np
 from dataclasses import dataclass
 from enum import Enum
 from numpy.typing import NDArray
-from scipy.integrate import solve_ivp
+from scipy.integrate import solve_ivp, OdeSolution
 from typing import Callable, List, Tuple
 
 @dataclass
@@ -182,6 +182,26 @@ def get_force_model(
             return temp
         case _:
             raise ValueError(f"Force model {model} does not exist.")
+
+@dataclass 
+class PropagatorSolution:
+    t: NDArray
+    y: NDArray
+
+    @property
+    def times(self: 'PropagatorSolution') -> NDArray:
+        return self.t
+    
+    @property
+    def solution(self: 'PropagatorSolution') -> NDArray:
+        return self.y
+
+    @staticmethod
+    def from_solve_ivp_output(output) -> 'PropagatorSolution':
+        return PropagatorSolution(
+            t=output.t,
+            y=output.y
+        )
     
 class OrbitalPropagator:
     def __init__(
@@ -192,14 +212,13 @@ class OrbitalPropagator:
         self.forces = forces
         self.method = method
 
-    def propagate_by_time(
+    def _propagate(
         self: 'OrbitalPropagator',
         state: OrbitalState,
         time: float,
         rtol: float = 1e-10,
         atol: float = 1e-10
-    ) -> OrbitalState | List[OrbitalState]:
-        
+    ) -> PropagatorSolution:
         def dynamics(
             t: float,
             y: NDArray
@@ -216,18 +235,98 @@ class OrbitalPropagator:
         
         y0 = np.concatenate([state.position, state.velocity])
         
-        sol = solve_ivp(
-            dynamics,
-            (state.time, state.time + time),
-            y0,
-            method=self.method.value,
-            rtol=rtol,
-            atol=atol
+        output = PropagatorSolution.from_solve_ivp_output(
+            solve_ivp(
+                dynamics,
+                (state.time, time),
+                y0,
+                method=self.method.value,
+                rtol=rtol,
+                atol=atol
+            )
         )
 
-        return OrbitalState(
-            mu=state.mu,
-            time=state.time + time,
-            position=sol.y[0:3, -1],
-            velocity=sol.y[3:6, -1]
+        return output
+
+    def propagate_to_time(
+        self: 'OrbitalPropagator',
+        state: OrbitalState,
+        time: float,
+        return_trajectory: bool = False,
+        rtol: float = 1e-10,
+        atol: float = 1e-10
+    ) -> OrbitalState | List[OrbitalState]:
+        output = self._propagate(
+            state,
+            time,
+            rtol,
+            atol
         )
+
+        if not return_trajectory:
+            return OrbitalState(
+                state.mu,
+                output.times[-1],
+                output.solution[0:3, -1],
+                output.solution[3:6, -1]
+            )
+        else:
+            trajectory: List[OrbitalState] = []
+
+            for i in range(output.times.shape[0]):
+                time = output.times[i]
+                position = output.solution[0:3, i]
+                velocity = output.solution[3:6, i]
+
+                trajectory.append(
+                    OrbitalState(
+                        state.mu,
+                        time,
+                        position,
+                        velocity
+                    )
+                )
+
+            return trajectory
+        
+
+    def propagate_by_time(
+        self: 'OrbitalPropagator',
+        state: OrbitalState,
+        time: float,
+        return_trajectory: bool = False,
+        rtol: float = 1e-10,
+        atol: float = 1e-10
+    ) -> OrbitalState | List[OrbitalState]:
+        output = self._propagate(
+            state,
+            state.time + time,
+            rtol,
+            atol
+        )
+
+        if not return_trajectory:
+            return OrbitalState(
+                state.mu,
+                output.times[-1],
+                output.solution[0:3, -1],
+                output.solution[3:6, -1]
+            )
+        else:
+            trajectory: List[OrbitalState] = []
+
+            for i in range(output.times.shape[0]):
+                time = output.times[i]
+                position = output.solution[0:3, i]
+                velocity = output.solution[3:6, i]
+
+                trajectory.append(
+                    OrbitalState(
+                        state.mu,
+                        time,
+                        position,
+                        velocity
+                    )
+                )
+
+            return trajectory
