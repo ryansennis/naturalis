@@ -1,0 +1,10 @@
+LICENSE
+README.md
+pyproject.toml
+src/__init__.py
+src/propagator.py
+src/naturalis.egg-info/PKG-INFO
+src/naturalis.egg-info/SOURCES.txt
+src/naturalis.egg-info/dependency_links.txt
+src/naturalis.egg-info/requires.txt
+src/naturalis.egg-info/top_level.txt
