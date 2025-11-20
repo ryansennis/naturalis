@@ -64,7 +64,8 @@ def plot_orbital_states(states: List[OrbitalState], figure: go.Figure) -> None:
                 showlegend=False,
                 hovertemplate=(
                     f"Time: {state.time}<br>"
-                    f"Velocity: [{state.velocity[0]:.3f}, {state.velocity[1]:.3f}, {state.velocity[2]:.3f}]"
+                    f"Position: [{state.position[0]:.3f}, {state.position[1]:.3f}, {state.position[2]:.3f}] km<br>"
+                    f"Velocity: [{state.velocity[0]:.3f}, {state.velocity[1]:.3f}, {state.velocity[2]:.3f}] km/s"
                 )
             )
         )
