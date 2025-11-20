@@ -46,9 +46,8 @@ class ForceModel(Enum):
     RADIATION = lambda state: state
     ATMOSPHERIC = lambda state: state
 
-    @property
-    def value(self: 'ForceModel') -> Callable[[OrbitalState], Tuple[NDArray, NDArray]]:
-        return self.value
+    def __call__(self, state) -> Tuple[NDArray, NDArray]:
+        return self.value(state)
 
 @dataclass 
 class PropagatorSolution:
@@ -118,7 +117,7 @@ class OrbitalPropagator:
             v_f, a_f = 0, 0
 
             for model in self.forces:
-                v, a = model.value(OrbitalState(state.mu, t, y[0:3], y[3:6]))
+                v, a = model(OrbitalState(state.mu, t, y[0:3], y[3:6]))
                 v_f += v
                 a_f += a
 

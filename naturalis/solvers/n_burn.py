@@ -442,19 +442,20 @@ class NBurnSolver:
         x0 = np.zeros(4)
         
         self._log(f"Starting gradient-based optimization")
-        result = minimize(
-            objective, 
-            x0, 
-            method='BFGS',
-            jac=True,
-            tol=tol
+        result = MidpointOptimizationOutput.from_minimization_output(
+            minimize(
+                objective, 
+                x0, 
+                method='BFGS',
+                jac=True,
+                tol=tol
+            )
         )
         
         self._log(f"Optimization successful: {result.message}")
         
-        dt, dx, dy, dz = result.x
-        new_time = burn.time + dt
-        new_position = burn.position + np.array([dx, dy, dz])
+        new_time = burn.time + result.time
+        new_position = burn.position + np.array(result.position)
         
         _, pre_traj, post_traj, delta_v = calculate_cost(new_position, new_time)
         
