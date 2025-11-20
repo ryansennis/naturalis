@@ -1,3 +1,3 @@
 venv/
-build/
 test.ipynb
+__pycache__
