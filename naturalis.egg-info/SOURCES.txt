@@ -1,6 +1,8 @@
 LICENSE
 README.md
 pyproject.toml
+naturalis/constants.py
+naturalis/plotting.py
 naturalis.egg-info/PKG-INFO
 naturalis.egg-info/SOURCES.txt
 naturalis.egg-info/dependency_links.txt

@@ -40,7 +40,7 @@ class MidpointOptimizationOutput():
     def from_minimization_output(output: OptimizeResult) -> 'MidpointOptimizationOutput':
         return MidpointOptimizationOutput(
             output.x[0],
-            np.array(output.x[1:3]),
+            np.array(output.x[1:4]),
             output.success,
             output.status,
             output.message
@@ -121,8 +121,8 @@ class NBurnSolver:
         t_initial = [trajectory.burns[0].time, trajectory.burns[1].time]
 
         def objective(t_guess: NDArray) -> NDArray[np.float64]:
-            initial_coast_state = self.propagator.propagate_by_time(initial_state, t_guess[0])
-            final_coast_state = self.propagator.propagate_by_time(final_state, t_guess[1])
+            initial_coast_state = self.propagator.propagate_state_by_time(initial_state, t_guess[0])
+            final_coast_state = self.propagator.propagate_state_by_time(final_state, t_guess[1])
 
             candidate_trajectory = self.lambert.solve(initial_coast_state, final_coast_state)
 
@@ -137,8 +137,8 @@ class NBurnSolver:
             )
         )
 
-        initial_coast_state = self.propagator.propagate_by_time(initial_state, result.t_0)
-        final_coast_state = self.propagator.propagate_by_time(final_state, result.t_f)
+        initial_coast_state = self.propagator.propagate_state_by_time(initial_state, result.t_0)
+        final_coast_state = self.propagator.propagate_state_by_time(final_state, result.t_f)
 
         best_trajectory = self.lambert.solve(initial_coast_state, final_coast_state)
         best_cost = best_trajectory.total_delta_v
@@ -296,7 +296,7 @@ class NBurnSolver:
         self._log(f"Adding burn to segment {index + 1}")
         
         segment = trajectory.segments[index]
-        midcourse_state = self.propagator.propagate_to_time(segment.initial_state, midcourse_time)
+        midcourse_state = self.propagator.propagate_state_to_time(segment.initial_state, midcourse_time)
         midcourse_position = midcourse_state.position
 
         new_trajectory = trajectory
@@ -386,9 +386,12 @@ class NBurnSolver:
                 initial_state = trajectory.segments[index - 1].final_state
                 final_state = trajectory.segments[index + 2].initial_state
         
-        def calculate_cost(pos, time):
-            """Calculate delta-v cost for a burn at given position and time."""
-            state = OrbitalState(self.mu, time, pos, np.zeros(3))
+        def objective(params):
+            dt, dx, dy, dz = params
+            new_time = burn.time + dt
+            new_position = burn.position + np.array([dx, dy, dz])
+                
+            state = OrbitalState(self.mu, new_time, new_position, np.zeros(3))
             pre_traj = self.lambert.solve(initial_state, state)
             post_traj = self.lambert.solve(state, final_state)
             
@@ -399,45 +402,7 @@ class NBurnSolver:
                 norm(post_traj.burns[1].delta_v)
             )
             
-            return total_dv, pre_traj, post_traj, delta_v
-        
-        def objective(params):
-            dt, dx, dy, dz = params
-            new_time = burn.time + dt
-            new_position = burn.position + np.array([dx, dy, dz])
-                
-            cost, pre_traj, post_traj, delta_v = calculate_cost(new_position, new_time)
-
-            primer_before = self.primer.analyze_segment(
-                pre_traj.segments[0], 
-                pre_traj.burns[0], 
-                Burn(new_time, delta_v, new_position)
-            )
-            
-            primer_after = self.primer.analyze_segment(
-                post_traj.segments[0], 
-                Burn(new_time, delta_v, new_position), 
-                post_traj.burns[1]
-            )
-            
-            p_dot_minus = primer_before.vectors[-1].derivative
-            p_dot_plus = primer_after.vectors[0].derivative
-            
-            H_minus = self._calculate_hamiltonian(
-                primer_before.vectors[-1], 
-                pre_traj.segments[0].final_state
-            )
-            
-            H_plus = self._calculate_hamiltonian(
-                primer_after.vectors[0], 
-                post_traj.segments[0].initial_state
-            )
-            
-            position_gradient = p_dot_plus - p_dot_minus
-            
-            time_gradient = -(H_plus - H_minus)
-            
-            return (cost, np.concatenate([[time_gradient], position_gradient]))
+            return total_dv
         
         x0 = np.zeros(4)
         
@@ -447,7 +412,6 @@ class NBurnSolver:
                 objective, 
                 x0, 
                 method='BFGS',
-                jac=True,
                 tol=tol
             )
         )
@@ -457,7 +421,11 @@ class NBurnSolver:
         new_time = burn.time + result.time
         new_position = burn.position + np.array(result.position)
         
-        _, pre_traj, post_traj, delta_v = calculate_cost(new_position, new_time)
+        state = OrbitalState(self.mu, new_time, new_position, np.zeros(3))
+        pre_traj = self.lambert.solve(initial_state, state)
+        post_traj = self.lambert.solve(state, final_state)
+        
+        delta_v = post_traj.segments[0].initial_state.velocity - pre_traj.segments[0].final_state.velocity
         
         new_burn = Burn(new_time, delta_v, new_position)
         
@@ -477,27 +445,10 @@ class NBurnSolver:
         
         return new_trajectory
     
-    def _calculate_hamiltonian(
-        self: "NBurnSolver",
-        primer_state: PrimerVector,
-        orbital_state: OrbitalState
-    ) -> float:
-        """Calculate Hamiltonian"""
-        p = primer_state.value
-        p_dot = primer_state.derivative
-        v = orbital_state.velocity
-        r = orbital_state.position
-        
-        r_mag = norm(r)
-        g = -self.mu * r / r_mag**3
-        
-        return float(p_dot.T @ v - p.T @ g)
-    
     def solve(
         self: 'NBurnSolver', 
         initial_state: OrbitalState, 
         final_state: OrbitalState,
-        min_altitude: float = 0.0,
         max_burns: int = 6,
         tol: float = 1e-12
     ) -> Trajectory:
@@ -513,14 +464,19 @@ class NBurnSolver:
         Returns:
             optimal_trajectory (Trajectory): Optimized trajectory satisfying necessary conditions.
         """
-        assert (min_altitude >= 0.0)
-        self.min_altitude = min_altitude
         self._log("=== Starting N-burn optimization ===")
         self._log("Finding initial Lambert solution")
         
         trajectory = self.lambert.solve(initial_state, final_state)
         best_delta_v = trajectory.total_delta_v
         self._log(f"Initial Lambert solution cost: {best_delta_v:.4f} km/s")
+
+        # self._add_terminal_coasts(
+        #     initial_state=initial_state,
+        #     final_state=final_state,
+        #     trajectory=trajectory,
+        #     tol=tol
+        # )
 
         best_trajectory = trajectory
         while (len(best_trajectory.burns) < max_burns):

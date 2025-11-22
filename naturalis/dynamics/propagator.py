@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from enum import Enum
-from naturalis.dynamics.orbit import OrbitalState
+from naturalis.dynamics.orbit import OrbitalState, Segment, Trajectory, Burn
 from numpy.typing import NDArray
 from scipy.integrate import solve_ivp
-from typing import Callable, List, Tuple
+from typing import List, Tuple, Optional
 
 import numpy as np
     
@@ -138,7 +138,7 @@ class OrbitalPropagator:
 
         return solution
 
-    def propagate_to_time(
+    def propagate_state_to_time(
         self: 'OrbitalPropagator',
         state: OrbitalState,
         time: float,
@@ -171,7 +171,7 @@ class OrbitalPropagator:
             output.solution[3:6, -1]
         )
 
-    def propagate_by_time(
+    def propagate_state_by_time(
         self: 'OrbitalPropagator',
         state: OrbitalState,
         time: float,
@@ -191,105 +191,177 @@ class OrbitalPropagator:
             state (OrbitalState): The propagated state.
         '''
         output = self._propagate(
-            state,
-            state.time + time,
-            rtol,
-            atol
+            state=state,
+            time=state.time + time,
+            rtol=rtol,
+            atol=atol
         )
 
         return OrbitalState(
-            state.mu,
-            output.times[-1],
-            output.solution[0:3, -1],
-            output.solution[3:6, -1]
+            mu=state.mu,
+            time=output.times[-1],
+            position=output.solution[0:3, -1],
+            velocity=output.solution[3:6, -1]
         )
     
-    def propagate_trajectory_to_time(
+    def propagate_state_to_segment(
         self: 'OrbitalPropagator',
-        state: OrbitalState,
+        initial_state: OrbitalState,
         time: float,
         rtol: float = 1e-10,
         atol: float = 1e-10
-    ) -> List[OrbitalState]:
-        
-        '''
-        Propagates a state to some absolute time and returns the entire trajectory.
-        
-        Args:
-        state (OrbitalState): The state to propagate.
-        time (float): The time to propagate to.
-        rtol (float): Relative tolerance for internal solver. Defaults to 1e-10.
-        atol (float): Absolute tolerance for internal solver. Defaults to 1e-10.
-
-        Returns:
-            state (List[OrbitalState]): The propagated trajectory.
-        '''
-        output = self._propagate(
-            state,
-            time,
-            rtol,
-            atol
+    ) -> Segment:
+        final_state = self.propagate_state_to_time(
+            state=initial_state,
+            time=time,
+            rtol=rtol,
+            atol=atol
         )
 
-        trajectory: List[OrbitalState] = []
-
-        for i in range(output.times.shape[0]):
-            time = output.times[i]
-            position = output.solution[0:3, i]
-            velocity = output.solution[3:6, i]
-
-            trajectory.append(
-                OrbitalState(
-                    state.mu,
-                    time,
-                    position,
-                    velocity
-                )
-            )
-
-        return trajectory
+        return Segment(initial_state=initial_state, final_state=final_state)
     
-    def propagate_trajectory_by_time(
+    def propagate_state_by_segment(
         self: 'OrbitalPropagator',
-        state: OrbitalState,
+        initial_state: OrbitalState,
         time: float,
         rtol: float = 1e-10,
         atol: float = 1e-10
-    ) -> List[OrbitalState]:
-        
-        '''
-        Propagates a state by some relative time and returns the entire trajectory.
-        
-        Args:
-        state (OrbitalState): The state to propagate.
-        time (float): The time to propagate by.
-        rtol (float): Relative tolerance for internal solver. Defaults to 1e-10.
-        atol (float): Absolute tolerance for internal solver. Defaults to 1e-10.
-
-        Returns:
-            state (List[OrbitalState]): The propagated trajectory.
-        '''
-        output = self._propagate(
-            state,
-            state.time + time,
-            rtol,
-            atol
+    ) -> Segment:
+        final_state = self.propagate_state_by_time(
+            state=initial_state,
+            time=time,
+            rtol=rtol,
+            atol=atol
         )
 
-        trajectory: List[OrbitalState] = []
+        return Segment(initial_state=initial_state, final_state=final_state)
+    
+    def propagate_segment(
+        self: 'OrbitalPropagator',
+        segment: Segment,
+        rtol: float = 1e-10,
+        atol: float = 1e-10
+    ) -> List[OrbitalState]:
+        output = self._propagate(
+            state=segment.initial_state,
+            time=segment.final_state.time,
+            rtol=rtol,
+            atol=atol
+        )
 
-        for i in range(output.times.shape[0]):
-            time = output.times[i]
-            position = output.solution[0:3, i]
-            velocity = output.solution[3:6, i]
+        states: List[OrbitalState] = []
 
-            trajectory.append(
+        for i in range(output.y.shape[1]):
+            time: float = output.t[i]
+            position: NDArray = output.y[0:3, i]
+            velocity: NDArray = output.y[3:6, i]
+
+            states.append(
                 OrbitalState(
-                    state.mu,
-                    time,
-                    position,
-                    velocity
+                    mu=segment.initial_state.mu,
+                    time=time,
+                    position=position,
+                    velocity=velocity
                 )
             )
 
-        return trajectory
+        return states
+    
+    def propagate_segment_to_time(
+        self: 'OrbitalPropagator',
+        segment: Segment,
+        time: float,
+        rtol = 1e-10,
+        atol = 1e-10
+    ) -> OrbitalState:
+        if not segment.initial_state.time < time < segment.final_state.time:
+            raise ValueError(f"Time {time} does not exist within segment.")
+
+        output = self._propagate(
+            state=segment.initial_state,
+            time=time,
+            rtol=rtol,
+            atol=atol
+        )
+
+        return OrbitalState(
+            mu=segment.initial_state.mu,
+            time=time,
+            position=output.y[0:3, -1],
+            velocity=output.y[3:6, -1]
+        )
+    
+    def propagate_trajectory(
+        self: 'OrbitalPropagator',
+        trajectory: Trajectory,
+        atol = 1e-10,
+        rtol = 1e-10
+    ) -> List[List[OrbitalState]]:
+        states: List[List[OrbitalState]] = []
+
+        for segment in trajectory.segments:
+            states.append(self.propagate_segment(segment, rtol, atol))
+
+        return states
+    
+    def propagate_state_to_trajectory(
+        self: 'OrbitalPropagator',
+        initial_state: OrbitalState,
+        burns: List[Burn],
+        time: float,
+        rtol = 1e-10,
+        atol = 1e-10
+    ) -> Trajectory:
+        assert burns[0].time >= initial_state.time
+        assert burns[-1].time <= time
+
+        segments: List[Segment] = []
+        initial_states: List[OrbitalState] = []
+
+        initial_coast: Optional[Segment] = None
+        final_coast: Optional[Segment] = None
+        start_index = 0
+
+        if burns[0].time > initial_state.time:
+            initial_coast = self.propagate_state_to_segment(
+                initial_state=initial_state,
+                time=burns[0].time,
+                rtol=rtol,
+                atol=atol
+            )
+            start_index = 1
+            initial_states.append(initial_coast.final_state)
+            burns[0].position = initial_coast.final_state.position
+        else:
+            initial_states.append(initial_state)
+
+        for i in range(0, len(burns) - 1):
+            burn = burns[i]
+            burn.position = initial_states[i].position
+            state = initial_states[i]
+            state.velocity += burn.delta_v
+            segment = self.propagate_state_to_segment(
+                initial_state=state,
+                time=burns[i + 1].time,
+                rtol=rtol,
+                atol=atol
+            )
+            segments.append(segment)
+            initial_states.append(segment.final_state)
+
+        if time > burns[-1].time:
+            state = initial_states[-1]
+            state.velocity += burns[-1].delta_v
+            final_coast = self.propagate_state_to_segment(
+                initial_state=state,
+                time=time,
+                rtol=rtol,
+                atol=atol
+            )
+
+            burns[-1].position = final_coast.initial_state.position
+        else:
+            burns[-1].position = segments[-1].final_state.position
+
+
+        return Trajectory(segments=segments, burns=burns, initial_coast=initial_coast, final_coast=final_coast)

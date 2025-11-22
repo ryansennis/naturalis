@@ -146,12 +146,7 @@ class Burn:
     """Represents an impulsive maneuver (instantaneous change in velocity)."""
     time: float
     delta_v: NDArray
-    position: NDArray
-    
-    def __post_init__(self):
-        """Validate the vectors after initialization."""
-        self.delta_v = np.array(self.delta_v)
-        self.position = np.array(self.position)
+    position: Optional[NDArray] = None
             
     @property
     def magnitude(self) -> float:
@@ -165,7 +160,7 @@ class Burn:
     
     def copy(self) -> 'Burn':
         """Get a deep copy of this `Burn` object."""
-        return Burn(self.time, self.delta_v.copy(), self.position.copy())
+        return Burn(self.time, self.delta_v.copy(), self.position.copy() if self.position is not None else None)
 
 @dataclass
 class Segment:
