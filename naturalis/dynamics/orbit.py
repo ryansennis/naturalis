@@ -20,7 +20,6 @@ class OrbitalState:
 
     def __post_init__(self: 'OrbitalState'):
         assert self.mu >= 0
-        assert self.time >= 0
         assert len(self.position) == 3
         assert len(self.velocity) == 3
 
@@ -140,6 +139,48 @@ class OrbitalParameters:
         v_eci = R @ v_pqw
         
         return OrbitalState(self.mu, time, r_eci, v_eci)
+    
+    @staticmethod
+    def from_state(
+        state: OrbitalState
+    ) -> 'OrbitalParameters':
+        r = state.position
+        v = state.velocity
+        mu = state.mu
+
+        h = np.cross(r, v)
+        h_mag = np.linalg.norm(h)
+
+        k = np.array([0, 0, 1])
+        n = np.cross(k, h)
+        n_mag = np.linalg.norm(n)
+
+        e = ((np.dot(v, v) - mu / np.linalg.norm(r)) * r - np.dot(r, v) * v) / mu
+        e_mag = np.linalg.norm(e)
+
+        r_mag = np.linalg.norm(r)
+        v_mag = np.linalg.norm(v)
+        a = 1 / (2 / r_mag - v_mag**2 / mu)
+
+        i = np.arccos(h[2] / h_mag)
+
+        if n_mag < 1e-10:
+            raan = 0.0
+        else:
+            raan = np.arccos(n[0] / n_mag)
+            if n[1] < 0:
+                raan = 2*np.pi - raan
+
+        if n_mag < 1e-10:
+            aop = np.arctan2(e[1], e[0])
+        elif e_mag < 1e-10:
+            aop = 0.0
+        else:
+            aop = np.arccos(np.dot(n, e) / (n_mag * e_mag))
+            if e[2] < 0:
+                aop = 2*np.pi - aop
+
+        return OrbitalParameters(mu, float(a), float(e_mag), i, raan, aop)
 
 @dataclass
 class Burn:

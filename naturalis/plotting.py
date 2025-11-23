@@ -1,6 +1,9 @@
-from naturalis.dynamics.orbit import OrbitalState, Segment, Trajectory, Burn
+from naturalis.dynamics.orbit import OrbitalState, OrbitalParameters, Segment, Trajectory, Burn
 from naturalis.dynamics.propagator import OrbitalPropagator
+from naturalis.solvers.lambert import LambertSolution
+from naturalis.solvers.n_burn import NBurnSolution
 from typing import List, Optional
+from numpy.linalg import norm
 
 import numpy as np
 import plotly.graph_objects as go
@@ -84,7 +87,7 @@ def plot_orbital_state(
             z=[state.position[2]],
             showlegend=True,
             mode="markers",
-            marker=dict(size=7, color=color),
+            marker=dict(size=3, color=color),
             name=name,
             legendgroup="states",
             legendgrouptitle_text="Orbital States",
@@ -122,39 +125,82 @@ def plot_orbital_states(
             )
         )
 
+def plot_segment(
+    figure: go.Figure,
+    segment: Segment,
+    propagator: OrbitalPropagator,
+    name: str,
+    color: Optional[str] = None,
+    legendgroup: str = "segments",
+    legendgrouptitle_text: str = "Segments"
+) -> None:
+    states = propagator.propagate_segment(segment)
+
+    t = [state.time for state in states]
+    x = [state.position[0] for state in states]
+    y = [state.position[1] for state in states]
+    z = [state.position[2] for state in states]
+
+    v_x = [state.velocity[0] for state in states]
+    v_y = [state.velocity[1] for state in states]
+    v_z = [state.velocity[2] for state in states]
+
+    figure.add_trace(
+        go.Scatter3d(
+            x=x,
+            y=y,
+            z=z,
+            customdata=np.stack((t, v_x, v_y, v_z), axis=-1),
+            mode="lines",
+            marker=dict(size=3, color=color),
+            showlegend=True,
+            name=name,
+            legendgroup=legendgroup,
+            legendgrouptitle_text=legendgrouptitle_text,
+            hovertemplate=(
+                "<b>Time</b>: %{customdata[0]} s<br>"
+                "<b>Position</b>: [%{x:.3f}, %{y:.3f}, %{z:.3f}] km<br>"
+                "<b>Velocity</b>: [%{customdata[1]:.3f}, %{customdata[2]:.3f}, %{customdata[3]:.3f}] km/s"
+                "<extra></extra>"
+            )
+        )
+    )
+
 def plot_segments(
     figure: go.Figure,
     segments: List[Segment],
     propagator: OrbitalPropagator
 ) -> None:
     for i, segment in enumerate(segments):
-        states = propagator.propagate_segment(segment)
+        plot_segment(
+            figure,
+            segment,
+            propagator,
+            f'Segment {i + 1}'
+        )
 
-        t = [state.time for state in states]
-        x = [state.position[0] for state in states]
-        y = [state.position[1] for state in states]
-        z = [state.position[2] for state in states]
-
-        v_x = [state.velocity[0] for state in states]
-        v_y = [state.velocity[1] for state in states]
-        v_z = [state.velocity[2] for state in states]
-
+def plot_burn(
+    figure: go.Figure,
+    burn: Burn,
+    name: Optional[str] = None,
+    showlegend: Optional[bool] = False
+) -> None:
+    if burn.position is not None:
         figure.add_trace(
             go.Scatter3d(
-                x=x,
-                y=y,
-                z=z,
-                customdata=np.stack((t, v_x, v_y, v_z), axis=-1),
-                mode="lines",
-                marker=dict(size=7),
-                showlegend=True,
-                name=f"Segment {i + 1}",
-                legendgroup="segments",
-                legendgrouptitle_text="Segments",
+                x=[burn.position[0]],
+                y=[burn.position[1]],
+                z=[burn.position[2]],
+                showlegend=showlegend,
+                mode="markers",
+                marker=dict(size=3, color='darkorange'),
+                name=name,
+                legendgroup="burns",
+                legendgrouptitle_text="Burns",
                 hovertemplate=(
-                    "<b>Time</b>: %{customdata[0]} s<br>"
-                    "<b>Position</b>: [%{x:.3f}, %{y:.3f}, %{z:.3f}] km<br>"
-                    "<b>Velocity</b>: [%{customdata[1]:.3f}, %{customdata[2]:.3f}, %{customdata[3]:.3f}] km/s"
+                    f"<b>Time</b>: {burn.time} s<br>"
+                    f"<b>Position</b>: [{burn.position[0]:.3f}, {burn.position[1]:.3f}, {burn.position[2]:.3f}] km<br>"
+                    f"<b>Delta-V</b>: [{burn.delta_v[0]:.3f}, {burn.delta_v[1]:.3f}, {burn.delta_v[2]:.3f}] km/s"
                     "<extra></extra>"
                 )
             )
@@ -162,29 +208,15 @@ def plot_segments(
 
 def plot_burns(
     figure: go.Figure,
-    burns: List[Burn],
+    burns: List[Burn]
 ) -> None:
     for i, burn in enumerate(burns):
-        if burn.position is not None:
-            figure.add_trace(
-                go.Scatter3d(
-                    x=[burn.position[0]],
-                    y=[burn.position[1]],
-                    z=[burn.position[2]],
-                    showlegend=True if i == 0 else False,
-                    mode="markers",
-                    marker=dict(size=7, color='darkorange'),
-                    name=f"Burns" if i == 0 else None,
-                    legendgroup="burns",
-                    legendgrouptitle_text="Burns",
-                    hovertemplate=(
-                        f"<b>Time</b>: {burn.time} s<br>"
-                        f"<b>Position</b>: [{burn.position[0]:.3f}, {burn.position[1]:.3f}, {burn.position[2]:.3f}] km<br>"
-                        f"<b>Delta-V</b>: [{burn.delta_v[0]:.3f}, {burn.delta_v[1]:.3f}, {burn.delta_v[2]:.3f}] km/s"
-                        "<extra></extra>"
-                    )
-                )
-            )
+        plot_burn(
+            figure=figure,
+            burn=burn,
+            name=f"Burns" if i == 0 else None,
+            showlegend=True if i == 0 else False
+        )
 
 def plot_coast(
     figure: go.Figure,
@@ -227,14 +259,14 @@ def plot_coast(
 
 def plot_terminal_coasts(
     figure: go.Figure,
-    intitial_coast: Optional[Segment],
+    initial_coast: Optional[Segment],
     final_coast: Optional[Segment],
     propagator: OrbitalPropagator
 ) -> None:
-    if intitial_coast is not None:
+    if initial_coast is not None:
         plot_coast(
             figure=figure,
-            coast=intitial_coast,
+            coast=initial_coast,
             name="Initial Coast",
             color="blue",
             propagator=propagator
@@ -242,7 +274,7 @@ def plot_terminal_coasts(
 
         plot_orbital_state(
             figure=figure,
-            state=intitial_coast.initial_state,
+            state=initial_coast.initial_state,
             name="Initial State",
             color="green"
         )
@@ -282,19 +314,85 @@ def plot_trajectory(
 
     plot_terminal_coasts(
         figure=figure,
-        intitial_coast=trajectory.initial_coast,
+        initial_coast=trajectory.initial_coast,
         final_coast=trajectory.final_coast,
         propagator=propagator
     )
 
-    
+    states: List[OrbitalState] = []
+    for segment in trajectory.segments:
+        states += propagator.propagate_segment(segment=segment)
 
+    max_radius = norm(max(states, key=lambda state: norm(state.position)).position)
+    
     figure.update_layout(
         scene=dict(
             aspectmode="cube",
-            xaxis=dict(range=[min_x, max_x]),
-            yaxis=dict(range=[min_y, max_y]),
-            zaxis=dict(range=[min_z, max_z])
+            xaxis=dict(range=[-max_radius, max_radius]),
+            yaxis=dict(range=[-max_radius, max_radius]),
+            zaxis=dict(range=[-max_radius, max_radius])
         ),
         autosize=True
+    )
+
+def plot_orbit(
+    figure: go.Figure,
+    state: OrbitalState,
+    propagator: OrbitalPropagator,
+    name: str,
+    color: str
+) -> None:
+    orbital_period = OrbitalParameters.from_state(state).period
+
+    final_state = propagator.propagate_state_by_time(
+        state,
+        orbital_period
+    )
+
+    orbit = Segment(state, final_state)
+
+    plot_segment(
+        figure,
+        orbit,
+        propagator,
+        name,
+        color,
+        "orbits",
+        "Orbits"
+    )
+
+def plot_solution(
+    figure: go.Figure,
+    solution: LambertSolution,
+    propagator: OrbitalPropagator
+) -> None:
+    plot_trajectory(
+        figure=figure,
+        trajectory=solution.trajectory,
+        propagator=propagator
+    )
+
+    plot_orbit(
+        figure=figure,
+        state=solution.initial_state,
+        propagator=propagator,
+        name="Initial Orbit",
+        color="blue"
+    )
+
+    plot_orbit(
+        figure=figure,
+        state=solution.final_state,
+        propagator=propagator,
+        name="Final Orbit",
+        color="purple"
+    )
+
+    solver_type = "Lambert" if type(solution) is LambertSolution else "N-Burn"
+    plot_title = f"{solver_type} Solution Plot - {solution.trajectory.total_delta_v:.3f} km/s"
+
+    figure.update_layout(
+        title=dict(
+            text=plot_title
+        )
     )

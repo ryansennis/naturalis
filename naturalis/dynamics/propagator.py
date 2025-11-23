@@ -320,7 +320,6 @@ class OrbitalPropagator:
 
         initial_coast: Optional[Segment] = None
         final_coast: Optional[Segment] = None
-        start_index = 0
 
         if burns[0].time > initial_state.time:
             initial_coast = self.propagate_state_to_segment(
@@ -329,17 +328,16 @@ class OrbitalPropagator:
                 rtol=rtol,
                 atol=atol
             )
-            start_index = 1
             initial_states.append(initial_coast.final_state)
             burns[0].position = initial_coast.final_state.position
         else:
             initial_states.append(initial_state)
 
-        for i in range(0, len(burns) - 1):
+        for i in range(len(burns) - 1):
             burn = burns[i]
             burn.position = initial_states[i].position
             state = initial_states[i]
-            state.velocity += burn.delta_v
+            state.velocity = state.velocity + burn.delta_v
             segment = self.propagate_state_to_segment(
                 initial_state=state,
                 time=burns[i + 1].time,
@@ -351,7 +349,7 @@ class OrbitalPropagator:
 
         if time > burns[-1].time:
             state = initial_states[-1]
-            state.velocity += burns[-1].delta_v
+            state.velocity = state.velocity + burns[-1].delta_v
             final_coast = self.propagate_state_to_segment(
                 initial_state=state,
                 time=time,

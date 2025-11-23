@@ -1,14 +1,18 @@
 from dataclasses import dataclass
-from naturalis.mathematics.primer import PrimerVector, PrimerVectorAnalyzer
+from naturalis.mathematics.primer import PrimerVectorTrajectory, PrimerVectorAnalyzer
 from naturalis.dynamics.orbit import OrbitalState, Segment, Trajectory, Burn
 from naturalis.dynamics.propagator import OrbitalPropagator
-from naturalis.solvers.lambert import LambertSolverType
+from naturalis.solvers.lambert import LambertSolverType, LambertSolution
 from numpy.linalg import norm, solve
 from numpy.typing import NDArray
 from scipy.optimize import minimize, OptimizeResult
 from typing import Tuple
 
 import numpy as np
+
+@dataclass
+class NBurnSolution(LambertSolution):
+    primer_trajectory: PrimerVectorTrajectory
 
 @dataclass
 class CoastOptimizationOutput():
@@ -60,7 +64,7 @@ class NBurnSolver:
         self: 'NBurnSolver', 
         mu: float,
         propagator: OrbitalPropagator,
-        lambert: LambertSolverType,
+        lambert: LambertSolverType = LambertSolverType.IZZO,
         debug: bool = False
     ) -> None:
         '''
@@ -124,7 +128,7 @@ class NBurnSolver:
             initial_coast_state = self.propagator.propagate_state_by_time(initial_state, t_guess[0])
             final_coast_state = self.propagator.propagate_state_by_time(final_state, t_guess[1])
 
-            candidate_trajectory = self.lambert.solve(initial_coast_state, final_coast_state)
+            candidate_trajectory = self.lambert.solve(initial_coast_state, final_coast_state).trajectory
 
             return np.array([candidate_trajectory.total_delta_v])
 
@@ -140,7 +144,7 @@ class NBurnSolver:
         initial_coast_state = self.propagator.propagate_state_by_time(initial_state, result.t_0)
         final_coast_state = self.propagator.propagate_state_by_time(final_state, result.t_f)
 
-        best_trajectory = self.lambert.solve(initial_coast_state, final_coast_state)
+        best_trajectory = self.lambert.solve(initial_coast_state, final_coast_state).trajectory
         best_cost = best_trajectory.total_delta_v
 
         if result.t_0 > t_initial[0]:
@@ -320,8 +324,8 @@ class NBurnSolver:
             perturbed_position = midcourse_position + delta_r
             perturbed_state = OrbitalState(self.mu, midcourse_time, perturbed_position, midcourse_state.velocity)
             
-            first_trajectory = self.lambert.solve(initial_state, perturbed_state)
-            second_trajectory = self.lambert.solve(perturbed_state, final_state)
+            first_trajectory = self.lambert.solve(initial_state, perturbed_state).trajectory
+            second_trajectory = self.lambert.solve(perturbed_state, final_state).trajectory
 
             v_minus = first_trajectory.segments[0].final_state.velocity
             v_plus = second_trajectory.segments[0].initial_state.velocity
@@ -392,8 +396,8 @@ class NBurnSolver:
             new_position = burn.position + np.array([dx, dy, dz])
                 
             state = OrbitalState(self.mu, new_time, new_position, np.zeros(3))
-            pre_traj = self.lambert.solve(initial_state, state)
-            post_traj = self.lambert.solve(state, final_state)
+            pre_traj = self.lambert.solve(initial_state, state).trajectory
+            post_traj = self.lambert.solve(state, final_state).trajectory
             
             delta_v = post_traj.segments[0].initial_state.velocity - pre_traj.segments[0].final_state.velocity
             total_dv = (
@@ -422,8 +426,8 @@ class NBurnSolver:
         new_position = burn.position + np.array(result.position)
         
         state = OrbitalState(self.mu, new_time, new_position, np.zeros(3))
-        pre_traj = self.lambert.solve(initial_state, state)
-        post_traj = self.lambert.solve(state, final_state)
+        pre_traj = self.lambert.solve(initial_state, state).trajectory
+        post_traj = self.lambert.solve(state, final_state).trajectory
         
         delta_v = post_traj.segments[0].initial_state.velocity - pre_traj.segments[0].final_state.velocity
         
@@ -451,7 +455,7 @@ class NBurnSolver:
         final_state: OrbitalState,
         max_burns: int = 6,
         tol: float = 1e-12
-    ) -> Trajectory:
+    ) -> NBurnSolution:
         """
         Find optimal N-impulse trajectory between two states using primer vector theory.
         
@@ -467,21 +471,21 @@ class NBurnSolver:
         self._log("=== Starting N-burn optimization ===")
         self._log("Finding initial Lambert solution")
         
-        trajectory = self.lambert.solve(initial_state, final_state)
-        best_delta_v = trajectory.total_delta_v
+        lambert_solution = self.lambert.solve(initial_state, final_state)
+        best_delta_v = lambert_solution.trajectory.total_delta_v
         self._log(f"Initial Lambert solution cost: {best_delta_v:.4f} km/s")
 
-        # self._add_terminal_coasts(
-        #     initial_state=initial_state,
-        #     final_state=final_state,
-        #     trajectory=trajectory,
-        #     tol=tol
-        # )
+        self._add_terminal_coasts(
+            initial_state=initial_state,
+            final_state=final_state,
+            trajectory=lambert_solution.trajectory,
+            tol=tol
+        )
 
-        best_trajectory = trajectory
+        best_trajectory = lambert_solution.trajectory
         while (len(best_trajectory.burns) < max_burns):
             
-            if self._check_optimality(trajectory):
+            if self._check_optimality(best_trajectory):
                 break
             
             guess_trajectory, index = self._add_midcourse_correction(initial_state, final_state, best_trajectory)
@@ -506,4 +510,9 @@ class NBurnSolver:
         self._log("=== Optimization complete ===")
         self._log(f"Final solution: {len(best_trajectory.burns)} burns, ΔV: {best_trajectory.total_delta_v:.4f} km/s")
         
-        return best_trajectory
+        return NBurnSolution(
+            initial_state=initial_state,
+            final_state=final_state,
+            trajectory=best_trajectory,
+            primer_trajectory=self.primer.analyze_trajectory(trajectory=best_trajectory)
+        )

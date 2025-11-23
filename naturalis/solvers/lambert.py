@@ -2,9 +2,15 @@ from naturalis.dynamics.orbit import OrbitalState, Segment, Trajectory, Burn
 from numpy.linalg import norm
 from typing import List, Tuple
 from enum import Enum
+from dataclasses import dataclass
 
 import numpy as np
 
+@dataclass
+class LambertSolution():
+    initial_state: OrbitalState
+    final_state: OrbitalState
+    trajectory: Trajectory
 
 class BaseLambertSolver():
     def __init__(
@@ -26,8 +32,8 @@ class BaseLambertSolver():
         self: 'BaseLambertSolver',
         r1: OrbitalState,
         r2: OrbitalState
-    ) -> Trajectory:
-        return Trajectory([Segment(r1, r2)], [])
+    ) -> LambertSolution:
+        return LambertSolution(r1, r2, Trajectory([Segment(r1, r2)], []))
 
 class IzzoLambertSolver(BaseLambertSolver):
     def __init__(
@@ -438,7 +444,7 @@ class IzzoLambertSolver(BaseLambertSolver):
         max_iter: int = 50,
         atol: float = 1e-5,
         rtol: float = 1e-7
-    ) -> Trajectory:
+    ) -> LambertSolution:
         """
         Solve Lambert's problem using Izzo's algorithm.
 
@@ -540,7 +546,9 @@ class IzzoLambertSolver(BaseLambertSolver):
             trajectory = Trajectory([segment], [initial_burn, final_burn])
             trajectories.append(trajectory)
 
-        return min(trajectories, key=lambda t: t.total_delta_v)
+        best_trajectory = min(trajectories, key=lambda t: t.total_delta_v)
+
+        return LambertSolution(r1, r2, best_trajectory)
 
 class LambertSolverType(Enum):
     IZZO = IzzoLambertSolver
