@@ -1,7 +1,7 @@
 from naturalis.dynamics.orbit import OrbitalState, OrbitalParameters, Segment, Trajectory, Burn
 from naturalis.dynamics.propagator import OrbitalPropagator
 from naturalis.solvers.lambert import LambertSolution
-from naturalis.solvers.n_burn import NBurnSolution
+from naturalis.mathematics.primer import PrimerVector, PrimerVectorSegment, PrimerVectorTrajectory, PrimerVectorAnalyzer
 from typing import List, Optional
 from numpy.linalg import norm
 
@@ -218,45 +218,6 @@ def plot_burns(
             showlegend=True if i == 0 else False
         )
 
-def plot_coast(
-    figure: go.Figure,
-    coast: Segment,
-    name: str,
-    color: str,
-    propagator: OrbitalPropagator
-) -> None:
-    states = propagator.propagate_segment(coast)
-
-    t = [state.time for state in states]
-    x = [state.position[0] for state in states]
-    y = [state.position[1] for state in states]
-    z = [state.position[2] for state in states]
-
-    v_x = [state.velocity[0] for state in states]
-    v_y = [state.velocity[1] for state in states]
-    v_z = [state.velocity[2] for state in states]
-
-    figure.add_trace(
-        go.Scatter3d(
-            x=x,
-            y=y,
-            z=z,
-            customdata=np.stack((t, v_x, v_y, v_z), axis=-1),
-            mode="lines",
-            marker=dict(size=7, color=color),
-            showlegend=True,
-            name=name,
-            legendgroup="coasts",
-            legendgrouptitle_text="Coasts",
-            hovertemplate=(
-                "<b>Time</b>: %{customdata[0]} s<br>"
-                "<b>Position</b>: [%{x:.3f}, %{y:.3f}, %{z:.3f}] km<br>"
-                "<b>Velocity</b>: [%{customdata[1]:.3f}, %{customdata[2]:.3f}, %{customdata[3]:.3f}] km/s"
-                "<extra></extra>"
-            )
-        )
-    )
-
 def plot_terminal_coasts(
     figure: go.Figure,
     initial_coast: Optional[Segment],
@@ -264,12 +225,14 @@ def plot_terminal_coasts(
     propagator: OrbitalPropagator
 ) -> None:
     if initial_coast is not None:
-        plot_coast(
+        plot_segment(
             figure=figure,
-            coast=initial_coast,
+            segment=initial_coast,
             name="Initial Coast",
             color="blue",
-            propagator=propagator
+            propagator=propagator,
+            legendgroup="coasts",
+            legendgrouptitle_text="Coasts"
         )
 
         plot_orbital_state(
@@ -280,12 +243,14 @@ def plot_terminal_coasts(
         )
 
     if final_coast is not None:
-        plot_coast(
+        plot_segment(
             figure=figure,
-            coast=final_coast,
+            segment=final_coast,
             name="Final Coast",
             color="purple",
-            propagator=propagator
+            propagator=propagator,
+            legendgroup="coasts",
+            legendgrouptitle_text="Coasts",
         )
 
         plot_orbital_state(
@@ -299,7 +264,8 @@ def plot_terminal_coasts(
 def plot_trajectory(
     figure: go.Figure,
     trajectory: Trajectory,
-    propagator: OrbitalPropagator
+    propagator: OrbitalPropagator,
+    plot_title: Optional[str] = None
 ) -> None:
     plot_burns(
         figure=figure,
@@ -320,10 +286,18 @@ def plot_trajectory(
     )
 
     states: List[OrbitalState] = []
+
+    if trajectory.initial_coast is not None:
+        states += propagator.propagate_segment(segment=trajectory.initial_coast)
+
     for segment in trajectory.segments:
         states += propagator.propagate_segment(segment=segment)
 
-    max_radius = norm(max(states, key=lambda state: norm(state.position)).position)
+    if trajectory.final_coast is not None:
+        states += propagator.propagate_segment(segment=trajectory.final_coast)
+
+    max_state = max(states, key=lambda state: norm(state.position))
+    max_radius = norm(max_state.position)
     
     figure.update_layout(
         scene=dict(
@@ -332,7 +306,10 @@ def plot_trajectory(
             yaxis=dict(range=[-max_radius, max_radius]),
             zaxis=dict(range=[-max_radius, max_radius])
         ),
-        autosize=True
+        autosize=True,
+        title=dict(
+            text=plot_title
+        )
     )
 
 def plot_orbit(
@@ -396,3 +373,40 @@ def plot_solution(
             text=plot_title
         )
     )
+
+def plot_primer_segment(
+    figure: go.Figure,
+    segment: PrimerVectorSegment
+) -> None:
+    times = [vector.time for vector in segment.vectors]
+    vectors = [vector.value for vector in segment.vectors]
+    derivatives = [vector.derivative for vector in segment.vectors]
+    magnitudes = [vector.magnitude for vector in segment.vectors]
+
+    figure.add_trace(
+        go.Scatter(
+            x=times,
+            y=magnitudes,
+            customdata=np.stack((vectors, derivatives), axis=-1),
+            mode="lines",
+            marker=dict(size=3),
+            showlegend=False,
+            hovertemplate=(
+                "<b>Time</b>: %{x} s<br>"
+                "<b>Magnitude</b>: %{y}<br>"
+                "<b>Vector</b>: [%{customdata[1][0]:.3f}, %{customdata[1][1]:.3f}, %{customdata[1][2]:.3f}]<br>"
+                "<b>Derivative</b>: [%{customdata[2][0]:.3f}, %{customdata[2][1]:.3f}, %{customdata[2][2]:.3f}]"
+                "<extra></extra>"
+            )
+        )
+    )
+
+def plot_primer_trajectory(
+    figure: go.Figure,
+    trajectory: PrimerVectorTrajectory
+) -> None:
+    for segment in trajectory.segments:
+        plot_primer_segment(
+            figure=figure,
+            segment=segment
+        )
