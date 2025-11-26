@@ -130,7 +130,7 @@ class PrimerVectorAnalyzer:
             
             p_dot_o = inv(N_fo) @ (p_f - M_fo @ p_o)
             
-            p = (N_to @ inv(N_fo) @ (dv_f/norm(dv_f)) + (M_to - N_to @ inv(N_fo) @ M_fo) @ (dv_o/norm(dv_o)))
+            p = (N_to @ inv(N_fo) @ (dv_f/norm(dv_f)) + (M_to - N_to @ inv(N_fo) @ M_fo) @ (dv_o / norm(dv_o)))
             
             p_dot = S_to @ p_o + T_to @ p_dot_o
             

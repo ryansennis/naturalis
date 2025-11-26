@@ -1,7 +1,7 @@
 from naturalis.dynamics.orbit import OrbitalState, OrbitalParameters, Segment, Trajectory, Burn
 from naturalis.dynamics.propagator import OrbitalPropagator
 from naturalis.solvers.lambert import LambertSolution
-from naturalis.mathematics.primer import PrimerVector, PrimerVectorSegment, PrimerVectorTrajectory, PrimerVectorAnalyzer
+from naturalis.mathematics.primer import PrimerVectorSegment, PrimerVectorTrajectory
 from typing import List, Optional
 from numpy.linalg import norm
 
@@ -43,7 +43,7 @@ def _plot_atmosphere(
 
 def plot_earth(
     figure: go.Figure,
-    atmosphere: bool
+    atmosphere: bool = False
 ) -> None:
     u = np.linspace(0, 2 * np.pi, 100)
     v = np.linspace(0, np.pi, 50)
