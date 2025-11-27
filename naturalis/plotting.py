@@ -134,7 +134,7 @@ def plot_segment(
     legendgroup: str = "segments",
     legendgrouptitle_text: str = "Segments"
 ) -> None:
-    states = propagator.propagate_segment(segment)
+    states = propagator.propagate_segment_to_list(segment)
 
     t = [state.time for state in states]
     x = [state.position[0] for state in states]
@@ -288,13 +288,13 @@ def plot_trajectory(
     states: List[OrbitalState] = []
 
     if trajectory.initial_coast is not None:
-        states += propagator.propagate_segment(segment=trajectory.initial_coast)
+        states += propagator.propagate_segment_to_list(segment=trajectory.initial_coast)
 
     for segment in trajectory.segments:
-        states += propagator.propagate_segment(segment=segment)
+        states += propagator.propagate_segment_to_list(segment=segment)
 
     if trajectory.final_coast is not None:
-        states += propagator.propagate_segment(segment=trajectory.final_coast)
+        states += propagator.propagate_segment_to_list(segment=trajectory.final_coast)
 
     max_state = max(states, key=lambda state: norm(state.position))
     max_radius = norm(max_state.position)

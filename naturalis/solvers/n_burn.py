@@ -12,10 +12,29 @@ import numpy as np
 
 @dataclass
 class NBurnSolution(LambertSolution):
+    """
+    Helper class for 
+
+    Extends:
+        LambertSolution
+
+    Params:
+        primer_trajectory (PrimerVectorTrajectory)
+    """
     primer_trajectory: PrimerVectorTrajectory
 
 @dataclass
 class CoastOptimizationOutput():
+    """
+    Helper class to wrap scipy's `OptimizeResult` class for coast optimization outputs.
+
+    Params:
+        t_0 (float): The difference in the initial burn time.
+        t_f (float): The difference in the final burn time.
+        success (bool): Flag that indicates if optimization was successful.
+        status (int): Gives the optimizer's end status.
+        message (str): A message detailing optimizer state.
+    """
     t_0: float
     t_f: float
     success: bool
@@ -23,7 +42,9 @@ class CoastOptimizationOutput():
     message: str
 
     @staticmethod
-    def from_minimization_output(output: OptimizeResult) -> 'CoastOptimizationOutput':
+    def from_optimize_result(
+        output: OptimizeResult
+    ) -> 'CoastOptimizationOutput':
         return CoastOptimizationOutput(
             output.x[0],
             output.x[1],
@@ -34,6 +55,16 @@ class CoastOptimizationOutput():
     
 @dataclass
 class MidpointOptimizationOutput():
+    """
+    Helper class to wrap scipy's `OptimizeResult` class for midpoint optimization outputs.
+
+    Params:
+        time (float): Time for optimized midpoint.
+        position (NDArray): Position for optimized midpoint.
+        success (bool): Flag that indicates if optimization was successful.
+        status (int): Gives the optimizer's end status.
+        message (str): A message detailing optimizer state.
+    """
     time: float
     position: NDArray
     success: bool
@@ -41,7 +72,9 @@ class MidpointOptimizationOutput():
     message: str
 
     @staticmethod
-    def from_minimization_output(output: OptimizeResult) -> 'MidpointOptimizationOutput':
+    def from_optimize_result(
+        output: OptimizeResult
+    ) -> 'MidpointOptimizationOutput':
         return MidpointOptimizationOutput(
             output.x[0],
             np.array(output.x[1:4]),
@@ -132,7 +165,7 @@ class NBurnSolver:
 
             return np.array([candidate_trajectory.total_delta_v])
 
-        result = CoastOptimizationOutput.from_minimization_output(
+        result = CoastOptimizationOutput.from_optimize_result(
             minimize(
                 objective, 
                 t_initial,
@@ -270,6 +303,8 @@ class NBurnSolver:
         Adds a midcourse correction at the point of maximum primer magnitude.
         
         Args:
+            initial_state (OrbitalState): The initial state.
+            final_state (OrbitalState): The final state.
             trajectory (Trajectory): The trajectory to modify.
             
         Returns:
@@ -411,7 +446,7 @@ class NBurnSolver:
         x0 = np.zeros(4)
         
         self._log(f"Starting gradient-based optimization")
-        result = MidpointOptimizationOutput.from_minimization_output(
+        result = MidpointOptimizationOutput.from_optimize_result(
             minimize(
                 objective, 
                 x0, 

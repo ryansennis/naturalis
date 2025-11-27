@@ -9,28 +9,51 @@ import numpy as np
 
 @dataclass
 class PrimerVector:
+    """
+    Represents a primer vector.
+
+    Parameters:
+        time (float): The time in [s].
+        value (NDArray): The value of the primer vector.
+        derivative (NDArray): The time derivative of the primer vector.
+    """
     time: float
     value: NDArray
     derivative: NDArray
 
     @property
     def magnitude(self) -> float:
+        """Gets the magnitude of the primer vector."""
         return float(norm(self.value))
 
 @dataclass
 class PrimerVectorSegment:
+    """
+    Represents a list of primer vectors within a natural motion segment.
+
+    Parameters:
+        vectors (List[PrimerVector]): The vectors in the segment.
+    """
     vectors: List[PrimerVector]
 
     @property
     def maximum(self) -> PrimerVector:
+        """Returns the primer vector with the largest magnitude."""
         return max(self.vectors, key=lambda v: v.magnitude)
 
 @dataclass
 class PrimerVectorTrajectory:
+    """
+    Represents a list of primer vector segments separated by burns.
+
+    Parameters:
+        vectors (List[PrimerVectorSegment]): The segments within a trajectory.
+    """
     segments: List[PrimerVectorSegment]
 
     @property
     def maximum(self) -> PrimerVector:
+        """Returns the primer vector with the largest magnitude."""
         maximum_vector = PrimerVector(0, np.zeros(3), np.zeros(3))
         for segment in self.segments:
             maximum_in_segment = segment.maximum

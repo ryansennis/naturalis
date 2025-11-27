@@ -25,10 +25,10 @@ def two_body_dynamics(
     Dynamics for two-body central gravitation.
 
     Args:
-        state (OrbitalState): The state of the objective body about the primary graviational body.
+        state (OrbitalState): The state of the objective body about the primary gravitational body.
 
     Returns:
-        velocity, accelaration (Tuple[NDArray, NDArray]): The velocity and acceleration at that state.
+        velocity, acceleration (Tuple[NDArray, NDArray]): The velocity and acceleration at that state.
     """
     r = state.position
     r_mag = np.linalg.norm(state.position)
@@ -211,6 +211,18 @@ class OrbitalPropagator:
         rtol: float = 1e-10,
         atol: float = 1e-10
     ) -> Segment:
+        """
+        Propagates a state to the given time and returns a segment.
+
+        Args:
+            initial_state (OrbitalState): The initial state.
+            time (float): The time to propagate to.
+            rtol (float): Relative tolerance for internal solver. Defaults to 1e-10.
+            atol (float): Absolute tolerance for internal solver. Defaults to 1e-10.
+
+        Returns:
+            segment (Segment): The segment.
+        """
         final_state = self.propagate_state_to_time(
             state=initial_state,
             time=time,
@@ -227,6 +239,18 @@ class OrbitalPropagator:
         rtol: float = 1e-10,
         atol: float = 1e-10
     ) -> Segment:
+        """
+        Propagates a state by the given time and returns a segment.
+
+        Args:
+            initial_state (OrbitalState): The initial state.
+            time (float): The time to propagate by.
+            rtol (float): Relative tolerance for internal solver. Defaults to 1e-10.
+            atol (float): Absolute tolerance for internal solver. Defaults to 1e-10.
+
+        Returns:
+            segment (Segment): The segment.
+        """
         final_state = self.propagate_state_by_time(
             state=initial_state,
             time=time,
@@ -236,12 +260,23 @@ class OrbitalPropagator:
 
         return Segment(initial_state=initial_state, final_state=final_state)
     
-    def propagate_segment(
+    def propagate_segment_to_list(
         self: 'OrbitalPropagator',
         segment: Segment,
         rtol: float = 1e-10,
         atol: float = 1e-10
     ) -> List[OrbitalState]:
+        """
+        Propagates a segment by the given time and returns a list of orbital states.
+
+        Args:
+            segment (Segment): The segment to propagate.
+            rtol (float): Relative tolerance for internal solver. Defaults to 1e-10.
+            atol (float): Absolute tolerance for internal solver. Defaults to 1e-10.
+
+        Returns:
+            states (List[OrbitalState]): The states.
+        """
         output = self._propagate(
             state=segment.initial_state,
             time=segment.final_state.time,
@@ -274,6 +309,19 @@ class OrbitalPropagator:
         rtol = 1e-10,
         atol = 1e-10
     ) -> OrbitalState:
+        """
+        Propagates a the initial state of a segment to the given time within the segment
+        and returns the orbital state.
+
+        Params:
+            segment (Segment): The segment to propagate.
+            time (float): The time to propagate to.
+            rtol (float): Relative tolerance for internal solver. Defaults to 1e-10.
+            atol (float): Absolute tolerance for internal solver. Defaults to 1e-10.
+
+        Returns:
+            state (OrbitalState): The orbital state at the given time.
+        """
         if not segment.initial_state.time < time < segment.final_state.time:
             raise ValueError(f"Time {time} does not exist within segment.")
 
@@ -297,10 +345,21 @@ class OrbitalPropagator:
         atol = 1e-10,
         rtol = 1e-10
     ) -> List[List[OrbitalState]]:
+        """
+        Propagates a trajectory segment by segment, and returns a list of lists of orbital states.
+
+        Args:
+            trajectory (Trajectory): The trajectory to propagate.
+            rtol (float): Relative tolerance for internal solver. Defaults to 1e-10.
+            atol (float): Absolute tolerance for internal solver. Defaults to 1e-10.
+
+        Returns:
+            trajectory (List[List[OrbitalState]]): The propagated states.
+        """
         states: List[List[OrbitalState]] = []
 
         for segment in trajectory.segments:
-            states.append(self.propagate_segment(segment, rtol, atol))
+            states.append(self.propagate_segment_to_list(segment, rtol, atol))
 
         return states
     
@@ -312,6 +371,19 @@ class OrbitalPropagator:
         rtol = 1e-10,
         atol = 1e-10
     ) -> Trajectory:
+        """
+        Propagates an initial_state into a trajectory given a list of burns.
+
+        Args:
+            initial_state (OrbitalState): The initial state to propagate.
+            burns (List([Burn]): The burns to use in propagation.
+            time (float): The 
+            rtol (float): Relative tolerance for internal solver. Defaults to 1e-10.
+            atol (float): Absolute tolerance for internal solver. Defaults to 1e-10.
+
+        Returns:
+            trajectory (List[List[OrbitalState]]): The propagated states.
+        """
         assert burns[0].time >= initial_state.time
         assert burns[-1].time <= time
 
