@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from naturalis.mathematics.primer import PrimerVectorTrajectory, PrimerVectorAnalyzer
 from naturalis.dynamics.orbit import OrbitalState, Segment, Trajectory, Burn
 from naturalis.dynamics.propagator import OrbitalPropagator
+from naturalis.mathematics.primer import PrimerVectorTrajectory, PrimerVectorAnalyzer
 from naturalis.solvers.lambert import LambertSolverType, LambertSolution
 from numpy.linalg import norm, solve
 from numpy.typing import NDArray
@@ -13,7 +13,7 @@ import numpy as np
 @dataclass
 class NBurnSolution(LambertSolution):
     """
-    Helper class for 
+    Helper class for solutions from the N-Burn Solver.
 
     Extends:
         LambertSolution

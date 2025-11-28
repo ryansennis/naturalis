@@ -1,9 +1,9 @@
 from naturalis.dynamics.orbit import OrbitalState, OrbitalParameters, Segment, Trajectory, Burn
 from naturalis.dynamics.propagator import OrbitalPropagator
-from naturalis.solvers.lambert import LambertSolution
 from naturalis.mathematics.primer import PrimerVectorSegment, PrimerVectorTrajectory
-from typing import List, Optional
+from naturalis.solvers.lambert import LambertSolution
 from numpy.linalg import norm
+from typing import List, Optional
 
 import numpy as np
 import plotly.graph_objects as go
