@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from naturalis.dynamics.orbit import Segment, Trajectory, Burn
+from ..dynamics.orbit import Segment, Trajectory, Burn
 from numpy.linalg import norm, inv
 from numpy.typing import NDArray
 from scipy.integrate import solve_ivp

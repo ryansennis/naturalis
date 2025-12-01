@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from naturalis.dynamics.orbit import OrbitalState, Segment, Trajectory, Burn
+from .orbit import OrbitalState, Segment, Trajectory, Burn
 from numpy.typing import NDArray
 from scipy.integrate import solve_ivp
 from typing import List, Tuple, Optional

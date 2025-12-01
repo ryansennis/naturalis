@@ -1,4 +1,4 @@
-from naturalis.dynamics.orbit import OrbitalState, Segment, Trajectory, Burn
+from ..dynamics.orbit import OrbitalState, Segment, Trajectory, Burn
 from numpy.linalg import norm
 from typing import List, Tuple
 from enum import Enum

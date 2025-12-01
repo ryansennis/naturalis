@@ -1,7 +1,7 @@
-from naturalis.dynamics.orbit import OrbitalState, OrbitalParameters, Segment, Trajectory, Burn
-from naturalis.dynamics.propagator import OrbitalPropagator
-from naturalis.mathematics.primer import PrimerVectorSegment, PrimerVectorTrajectory
-from naturalis.solvers.lambert import LambertSolution
+from .dynamics.orbit import OrbitalState, OrbitalParameters, Segment, Trajectory, Burn
+from .dynamics.propagator import OrbitalPropagator
+from .mathematics.primer import PrimerVectorSegment, PrimerVectorTrajectory
+from .solvers.lambert import LambertSolution
 from numpy.linalg import norm
 from typing import List, Optional
 

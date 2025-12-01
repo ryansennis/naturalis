@@ -1,8 +1,8 @@
 from dataclasses import dataclass
-from naturalis.dynamics.orbit import OrbitalState, Segment, Trajectory, Burn
-from naturalis.dynamics.propagator import OrbitalPropagator
-from naturalis.mathematics.primer import PrimerVectorTrajectory, PrimerVectorAnalyzer
-from naturalis.solvers.lambert import LambertSolverType, LambertSolution
+from ..dynamics.orbit import OrbitalState, Segment, Trajectory, Burn
+from ..dynamics.propagator import OrbitalPropagator
+from ..mathematics.primer import PrimerVectorTrajectory, PrimerVectorAnalyzer
+from .lambert import LambertSolverType, LambertSolution
 from numpy.linalg import norm, solve
 from numpy.typing import NDArray
 from scipy.optimize import minimize, OptimizeResult
