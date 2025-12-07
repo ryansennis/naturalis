@@ -6,4 +6,4 @@ struct OrbitalState {
     Eigen::Vector3d position;
     
     Eigen::Vector3d velocity;
-}
+};

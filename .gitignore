@@ -6,6 +6,7 @@ __pycache__/
 *.py[cod]
 bin/
 build/
+.cache/
 develop-eggs/
 dist/
 eggs/
