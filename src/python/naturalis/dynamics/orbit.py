@@ -1,6 +1,10 @@
+"""
+    Classes for orbital dynamics.
+"""
+
+from typing import List, Optional, Union
 from dataclasses import dataclass
 from numpy.typing import NDArray
-from typing import List, Optional, Union
 
 import numpy as np
 
@@ -25,10 +29,11 @@ class OrbitalState:
 
         self.position = np.array(self.position)
         self.velocity = np.array(self.velocity)
-    
+
     def copy(self: 'OrbitalState') -> 'OrbitalState':
+        """Makes a deep copy of the orbital state"""
         return OrbitalState(self.mu, self.time, self.position.copy(), self.velocity.copy())
-    
+
 @dataclass
 class OrbitalParameters:
     """
@@ -51,8 +56,8 @@ class OrbitalParameters:
     def period(self) -> float:
         """Orbital period (s)"""
         return 2 * np.pi * np.sqrt(self.a**3 / self.mu)
-    
-    @property 
+
+    @property
     def h(self) -> float:
         """Specific angular momentum (km^2 s^-1)"""
         return np.sqrt(self.mu * self.a * (1 - self.e**2))
@@ -61,7 +66,7 @@ class OrbitalParameters:
     def p(self) -> float:
         """Semilatus rectum (km)"""
         return self.a * (1 - self.e**2)
-    
+
     def radius(self, nu: float) -> float:
         """
         Get radius at a given true anomaly nu.
@@ -85,17 +90,17 @@ class OrbitalParameters:
             True anomaly (rad)
         """
         n = np.sqrt(self.mu / self.a**3)
-        
-        M = n * (t - t0)
-        
-        E = M
+
+        m = n * (t - t0)
+
+        e = m
         for _ in range(10):
-            E_next = M + self.e * np.sin(E)
-            if abs(E_next - E) < 1e-12:
+            e_next = m + self.e * np.sin(e)
+            if abs(e_next - e) < 1e-12:
                 break
-            E = E_next
-            
-        return 2 * np.arctan(np.sqrt((1 + self.e)/(1 - self.e)) * np.tan(E/2))
+            e = e_next
+
+        return 2 * np.arctan(np.sqrt((1 + self.e)/(1 - self.e)) * np.tan(e/2))
 
     def to_state(
         self,
@@ -115,35 +120,44 @@ class OrbitalParameters:
         r = self.radius(nu)
         r_pqw = r * np.array([np.cos(nu), np.sin(nu), 0])
         v_pqw = self.mu/self.h * np.array([-np.sin(nu), self.e + np.cos(nu), 0])
-        
+
         R_w = np.array([
             [np.cos(self.aop), np.sin(self.aop), 0],
             [-np.sin(self.aop), np.cos(self.aop), 0],
             [0, 0, 1]
         ])
-        
+
         R_i = np.array([
             [1, 0, 0],
             [0, np.cos(self.i), -np.sin(self.i)],
             [0, np.sin(self.i), np.cos(self.i)]
         ])
-        
+
         R_W = np.array([
             [np.cos(self.raan), -np.sin(self.raan), 0],
             [np.sin(self.raan), np.cos(self.raan), 0],
             [0, 0, 1]
         ])
-        
+
         R = R_W @ R_i @ R_w
         r_eci = R @ r_pqw
         v_eci = R @ v_pqw
-        
+
         return OrbitalState(self.mu, time, r_eci, v_eci)
-    
+
     @staticmethod
     def from_state(
         state: OrbitalState
     ) -> 'OrbitalParameters':
+        """
+        Converts an orbital state into an orbital parameters object.
+
+        Args:
+            state (OrbitalState): The orbital state.
+
+        Returns:
+            parameters (OrbitalParameters): The orbital parameters.
+        """
         r = state.position
         v = state.velocity
         mu = state.mu
@@ -188,20 +202,24 @@ class Burn:
     time: float
     delta_v: NDArray
     position: Optional[NDArray] = None
-            
+
     @property
     def magnitude(self) -> float:
         """Get the magnitude of the burn's delta-v vector."""
         return float(np.linalg.norm(self.delta_v))
-    
+
     @property
     def direction(self) -> NDArray:
         """Get the unit direction of the burn's delta-v vector."""
         return self.delta_v / self.magnitude
-    
+
     def copy(self) -> 'Burn':
         """Get a deep copy of this `Burn` object."""
-        return Burn(self.time, self.delta_v.copy(), self.position.copy() if self.position is not None else None)
+        return Burn(
+            self.time,
+            self.delta_v.copy(),
+            self.position.copy() if self.position is not None else None
+        )
 
 @dataclass
 class Segment:
@@ -217,16 +235,16 @@ class Segment:
     def duration(self) -> float:
         """Return the time duration of this segment in seconds."""
         return self.final_state.time - self.initial_state.time
-        
-@dataclass 
+
+@dataclass
 class Trajectory:
     """Represents a complete trajectory with multiple segments and burns."""
     segments: List[Segment]
     burns: List[Burn]
     initial_coast: Optional[Segment] = None
     final_coast: Optional[Segment] = None
-                
-    @property 
+
+    @property
     def total_delta_v(self) -> float:
         """Calculate total delta-v across all burns."""
         dv = sum(burn.magnitude for burn in self.burns)
@@ -236,7 +254,7 @@ class Trajectory:
     def duration(self) -> float:
         """Return the time duration of this trajectory in seconds."""
         return self.segments[-1].final_state.time - self.segments[0].initial_state.time
-    
+
     def copy(self) -> 'Trajectory':
         """Get a deep copy of this Trajectory."""
         segments = [segment.copy() for segment in self.segments]
@@ -246,7 +264,7 @@ class Trajectory:
             burns,
             self.initial_coast.copy() if self.initial_coast is not None else None
         )
-    
+
     def get_segment_containing_time(
         self,
         time: float
@@ -263,5 +281,5 @@ class Trajectory:
         for segment in self.segments:
             if segment.initial_state.time <= time <= segment.final_state.time:
                 return segment
-        
+
         return None
