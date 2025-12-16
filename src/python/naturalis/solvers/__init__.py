@@ -1,1 +1,1 @@
-from . import lambert, n_burn
+"""Solvers module."""

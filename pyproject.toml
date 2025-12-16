@@ -8,15 +8,18 @@ version = "0.1.0"
 description = "Naturalis is a high-performance Python framework for orbital simulation and Guidance, Navigation, and Control (GNC) algorithm development."
 readme = "README.md"
 requires-python = ">=3.9"
-license = "MIT"  # Fixed: Simple string
-authors = [{ name = "Ryan Ennis", email = "ryansennis@hotmail.com" }]
+license = "MIT"
+authors = [{name = "Ryan Ennis", email = "ryansennis@hotmail.com"}]
 dependencies = [
-  "numpy>=1.24",
-  "plotly>=6.5.0",
-  "scipy>=1.16.3",
-  "nbformat>=4.2.0",
-  "ipykernel>=7.1.0"
+    "numpy>=1.24",
+    "plotly>=6.5.0",
+    "scipy>=1.16.3",
+    "nbformat>=4.2.0",
+    "ipykernel>=7.1.0",
 ]
 
 [tool.setuptools.packages.find]
 where = ["src/python"]
+
+[tool.setuptools]
+zip-safe = false

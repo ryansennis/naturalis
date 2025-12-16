@@ -1,4 +1,13 @@
 __pycache__/
+_naturalis*
+_naturalis.cpython-*
+_naturalis*.so
+_naturalis*.pyd
+_naturalis*.dll
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
 .installed.cfg
 .vscode
 *.egg

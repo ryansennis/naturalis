@@ -1,1 +1,1 @@
-from . import primer
+"""Mathematics module."""
