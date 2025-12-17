@@ -7,7 +7,6 @@ sudo apt-get install -y \
     pybind11-dev \
     libgtest-dev
 
-# Build Google Test
 cd /usr/src/gtest
 sudo cmake CMakeLists.txt
 sudo make
