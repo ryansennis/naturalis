@@ -21,7 +21,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # =============================================================================
 # 2. OUTPUT DIRECTORIES
 # =============================================================================
-# Always use CMAKE_BINARY_DIR (build directory), not source directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -49,7 +48,6 @@ endif()
 # =============================================================================
 file(GLOB_RECURSE PYTHON_SOURCES src/python/naturalis/*.cpp)
 
-# ALWAYS create the Python module target
 pybind11_add_module(naturalis_pybind ${PYTHON_SOURCES})
 
 set_target_properties(naturalis_pybind PROPERTIES

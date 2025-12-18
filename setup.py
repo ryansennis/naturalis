@@ -32,7 +32,7 @@ class CMakeBuild(build_ext):
         print("Configuring CMake...")
         result = subprocess.run(
             ["cmake"] + cmake_args,
-            capture_output=True,
+            capture_output=False,
             text=True
         )
         
@@ -45,7 +45,7 @@ class CMakeBuild(build_ext):
         print("Building extension...")
         result = subprocess.run(
             ["cmake", "--build", str(build_dir), "--target", "naturalis_pybind"],
-            capture_output=True,
+            capture_output=False,
             text=True
         )
         
